@@ -1,0 +1,1 @@
+/usr/bin/c++   -Wall -Werror -Wextra -Wpedantic -O3 -funroll-loops -DNDEBUG  -rdynamic CMakeFiles/convert_octree.dir/convert_octree.cpp.o  -o ../../bin/convert_octree   -L/home/thui/Documents/git_repos/octomap/octomap/lib  -Wl,-rpath,/home/thui/Documents/git_repos/octomap/octomap/lib: ../../lib/liboctomap.so.1.9.8 ../../lib/liboctomath.so.1.9.8 

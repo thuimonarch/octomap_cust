@@ -1,0 +1,1 @@
+/usr/bin/c++   -Wall -Werror -Wextra -Wpedantic -O3 -funroll-loops -DNDEBUG  -rdynamic CMakeFiles/octree2pointcloud.dir/octree2pointcloud.cpp.o  -o ../../bin/octree2pointcloud   -L/home/thui/Documents/git_repos/octomap/octomap/lib  -Wl,-rpath,/home/thui/Documents/git_repos/octomap/octomap/lib ../../lib/liboctomap.so.1.9.8 ../../lib/liboctomath.so.1.9.8 
