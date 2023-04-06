@@ -51,7 +51,7 @@ namespace octomap {
     
     class Color {
     public:
-    Color() : r(255), g(255), b(255) {}
+    Color() : r(0), g(0), b(0) {}
     Color(uint8_t _r, uint8_t _g, uint8_t _b) 
       : r(_r), g(_g), b(_b) {}
       inline bool operator== (const Color &other) const {
@@ -175,6 +175,11 @@ namespace octomap {
     std::ostream& writeBinaryDataNew(std::ostream &s);
     std::ostream& writeBinaryNodeNew(std::ostream &s,const ColorOcTreeNode* node);
     
+    bool readBinary(const std::string& filename);
+    bool readBinary(std::istream &s);
+    std::istream& readBinaryDataNew(std::istream &s);
+    std::istream& readBinaryNodeNew(std::istream &s, ColorOcTreeNode* node);
+
   protected:
     void updateInnerOccupancyRecurs(ColorOcTreeNode* node, unsigned int depth);
 

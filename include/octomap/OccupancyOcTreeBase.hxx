@@ -935,6 +935,7 @@ namespace octomap {
 
   template <class NODE>
   std::istream& OccupancyOcTreeBase<NODE>::readBinaryData(std::istream &s){
+    std::cout << "in OccupancyOcTreeBase<NODE>::readBinaryData" << std::endl;
     // tree needs to be newly created or cleared externally
     if (this->root) {
       OCTOMAP_ERROR_STR("Trying to read into an existing tree.");
@@ -958,7 +959,7 @@ namespace octomap {
 
   template <class NODE>
   std::istream& OccupancyOcTreeBase<NODE>::readBinaryNode(std::istream &s, NODE* node){
-
+    std::cout << "in OccupancyOcTreeBase<NODE>::readBinaryNode" << std::endl;
     assert(node);
 
     char child1to4_char;
@@ -976,7 +977,8 @@ namespace octomap {
 
     // inner nodes default to occupied
     node->setLogOdds(this->clamping_thres_max);
-
+    std::cout << "in OccupancyOcTreeBase<NODE>::readBinaryNode | logodds " << std::endl;
+    
     for (unsigned int i=0; i<4; i++) {
       if ((child1to4[i*2] == 1) && (child1to4[i*2+1] == 0)) {
         // child is free leaf
@@ -994,6 +996,9 @@ namespace octomap {
         this->getNodeChild(node, i)->setLogOdds(-200.); // child is unkown, we leave it uninitialized
       }
     }
+    std::cout << "in OccupancyOcTreeBase<NODE>::readBinaryNode | checkpoint 1" << std::endl;
+   
+
     for (unsigned int i=0; i<4; i++) {
       if ((child5to8[i*2] == 1) && (child5to8[i*2+1] == 0)) {
         // child is free leaf
@@ -1013,9 +1018,16 @@ namespace octomap {
       // child is unkown, we leave it uninitialized
     }
 
+    std::cout << "in OccupancyOcTreeBase<NODE>::readBinaryNode | checkpoint 2" << std::endl;
+   
+
     // read children's children and set the label
     for (unsigned int i=0; i<8; i++) {
+      std::cout << "in OccupancyOcTreeBase<NODE>::readBinaryNode | bef node child " << i << std::endl;
+    
       if (this->nodeChildExists(node, i)) {
+        std::cout << "in OccupancyOcTreeBase<NODE>::readBinaryNode | node child " << i << std::endl;
+    
         NODE* child = this->getNodeChild(node, i);
         if (fabs(child->getLogOdds() + 200.)<1e-3) {
           readBinaryNode(s, child);

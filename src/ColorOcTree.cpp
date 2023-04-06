@@ -43,6 +43,7 @@ namespace octomap {
   std::ostream& ColorOcTreeNode::writeData(std::ostream &s) const {
     s.write((const char*) &value, sizeof(value)); // occupancy
     s.write((const char*) &color, sizeof(Color)); // color
+    //std::cout << "write: "<< &color << std::endl;
 
     return s;
   }
@@ -265,6 +266,151 @@ namespace octomap {
   }
 
 
+  bool ColorOcTree::readBinary(const std::string& filename){
+    //std::cout<< " in ColorOcTree::readBinary(filename)" << std::endl;
+    std::ifstream binary_infile( filename.c_str(), std::ios_base::binary);
+    if (!binary_infile.is_open()){
+      OCTOMAP_ERROR_STR("Filestream to "<< filename << " not open, nothing read.");
+      return false;
+    }
+    return readBinary(binary_infile);
+  }//end readBinary(file)
+
+  bool ColorOcTree::readBinary(std::istream &s) {
+    //std::cout<< " in ColorOcTree::readBinary(istream)" << std::endl;
+    
+    if (!s.good()){
+      OCTOMAP_WARNING_STR("Input filestream not \"good\" in OcTree::readBinary");
+    }
+    
+    // check if first line valid:
+    std::string line;
+    std::istream::pos_type streampos = s.tellg();
+    std::getline(s, line);
+    unsigned size;
+    double res;
+    if (line.compare(0,ColorOcTree::binaryFileHeader.length(), ColorOcTree::binaryFileHeader) ==0){
+      std::string id;
+      if (!AbstractOcTree::readHeader(s, id, size, res))
+        return false;
+      
+      OCTOMAP_DEBUG_STR("Reading binary octree type "<< id);
+    } else{ // try to read old binary format:
+      OCTOMAP_ERROR_STR("First line of OcTree file header does not start with \""<< ColorOcTree::binaryFileHeader<<"\"");
+      return false;
+    }
+    // otherwise: values are valid, stream is now at binary data!
+    this->clear();
+    this->setResolution(res);
+
+    if (size > 0)
+      this->readBinaryDataNew(s);
+    
+    if (size != this->size()){
+      OCTOMAP_ERROR("Tree size mismatch: # read nodes (%zu) != # expected nodes (%d)\n",this->size(), size);
+      return false;
+    }
+    return true;
+
+  }//end readBinary(istream)  
+  
+
+  std::istream& ColorOcTree::readBinaryDataNew(std::istream &s){
+    //std::cout << "in ColorOcTree::readBinaryDataNew" << std::endl;
+    // tree needs to be newly created or cleared externally
+    if (this->root) {
+      OCTOMAP_ERROR_STR("Trying to read into an existing tree.");
+      return s;
+    }
+
+    this->root = new ColorOcTreeNode();
+    this->readBinaryNodeNew(s, this->root);
+    this->size_changed = true;
+    this->tree_size = ColorOcTree::calcNumNodes();  // compute number of nodes
+    return s;
+  }// end readBinaryDataNew
+
+  std::istream& ColorOcTree::readBinaryNodeNew(std::istream &s, ColorOcTreeNode* node){
+    // std::cout << "in ColorOcTree::readBinaryNodeNew" << std::endl;
+    assert(node);
+
+    char child1to4_char;
+    char child5to8_char;
+    char r_char;
+    char g_char;
+    char b_char;
+
+    s.read((char*)&child1to4_char, sizeof(char));
+    s.read((char*)&child5to8_char, sizeof(char));
+    s.read((char*)&r_char, sizeof(char));
+    s.read((char*)&g_char, sizeof(char));
+    s.read((char*)&b_char, sizeof(char));
+
+    std::bitset<8> child1to4 ((unsigned long long) child1to4_char);
+    std::bitset<8> child5to8 ((unsigned long long) child5to8_char);
+    std::bitset<8> r ((unsigned long long) r_char);
+    std::bitset<8> g ((unsigned long long) g_char);
+    std::bitset<8> b ((unsigned long long) b_char);
+
+    uint8_t rci = r.to_ulong();
+    uint8_t gci = g.to_ulong();
+    uint8_t bci = b.to_ulong();  
+
+    node->setColor(rci,gci,bci);
+    node->setLogOdds(this->clamping_thres_max);
+    for (unsigned int i=0; i<4; i++) {
+      if ((child1to4[i*2] == 1) && (child1to4[i*2+1] == 0)) {
+        // child is free leaf
+        this->createNodeChild(node, i);
+        this->getNodeChild(node, i)->setLogOdds(this->clamping_thres_min);
+      }
+      else if ((child1to4[i*2] == 0) && (child1to4[i*2+1] == 1)) {
+        // child is occupied leaf
+        this->createNodeChild(node, i);
+        this->getNodeChild(node, i)->setLogOdds(this->clamping_thres_max);
+        this->getNodeChild(node, i)->setColor(rci,gci,bci);
+      }
+      else if ((child1to4[i*2] == 1) && (child1to4[i*2+1] == 1)) {
+        // child has children
+        this->createNodeChild(node, i);
+        this->getNodeChild(node, i)->setLogOdds(-200.); // child is unkown, we leave it uninitialized
+      }
+    }
+   
+    for (unsigned int i=0; i<4; i++) {
+      if ((child5to8[i*2] == 1) && (child5to8[i*2+1] == 0)) {
+        // child is free leaf
+        this->createNodeChild(node, i+4);
+        this->getNodeChild(node, i+4)->setLogOdds(this->clamping_thres_min);
+      }
+      else if ((child5to8[i*2] == 0) && (child5to8[i*2+1] == 1)) {
+        // child is occupied leaf
+        this->createNodeChild(node, i+4);
+        this->getNodeChild(node, i+4)->setLogOdds(this->clamping_thres_max);
+        this->getNodeChild(node, i+4)->setColor(rci,gci,bci);
+      }
+      else if ((child5to8[i*2] == 1) && (child5to8[i*2+1] == 1)) {
+        // child has children
+        this->createNodeChild(node, i+4);
+        this->getNodeChild(node, i+4)->setLogOdds(-200.); // set occupancy when all children have been read
+      }
+      // child is unkown, we leave it uninitialized
+    }
+     
+// read children's children and set the label
+    for ( unsigned int i=0; i<8; i++) {
+      if (this->nodeChildExists(node, i)) {
+        ColorOcTreeNode* child = this->getNodeChild(node, i);
+        if (fabs(child->getLogOdds() + 200.)<1e-3) {
+          readBinaryNodeNew(s, child);
+          child->setLogOdds(child->getMaxChildLogOdds());
+        }
+      } // end if child exists
+    } // end for children
+
+    return s;
+  }//end readBinaryNodeNew
+
   bool ColorOcTree::writeBinary(const std::string& filename){
     std::ofstream binary_outfile( filename.c_str(), std::ios_base::binary);
 
@@ -284,6 +430,7 @@ namespace octomap {
   }
 
   bool ColorOcTree::writeBinaryConst(std::ostream &s){
+    //std::cout<< "in ColorOcTree::writeBinaryConst | header : " << binaryFileHeader << std::endl;
     // write new header first:
     s << binaryFileHeader <<"\n# (feel free to add / change comments, but leave the first line as it is!)\n#\n";
     s << "id " << this->getTreeType() << std::endl;
@@ -295,6 +442,7 @@ namespace octomap {
 
     if (s.good()){
       OCTOMAP_DEBUG(" done.\n");
+      s.flush();
       return true;
     } else {
       OCTOMAP_WARNING_STR("Output stream not \"good\" after writing tree");
@@ -411,7 +559,6 @@ namespace octomap {
   }//end writeBinaryNodeNew
 
   const std::string ColorOcTree::binaryFileHeader = "# Octomap ColorOcTree binary file";
-
 
   ColorOcTree::StaticMemberInitializer ColorOcTree::colorOcTreeMemberInit;
 

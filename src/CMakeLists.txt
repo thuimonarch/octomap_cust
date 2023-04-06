@@ -67,6 +67,12 @@ TARGET_LINK_LIBRARIES(intersection_example octomap)
 ADD_EXECUTABLE(octree2pointcloud octree2pointcloud.cpp)
 TARGET_LINK_LIBRARIES(octree2pointcloud octomap)
 
+ADD_EXECUTABLE(ply2octree ply2octree.cpp)
+TARGET_LINK_LIBRARIES(ply2octree octomap)
+
+ADD_EXECUTABLE(colbinaryoctomap2ply colbinaryoctomap2ply.cpp)
+TARGET_LINK_LIBRARIES(colbinaryoctomap2ply octomap)
+ 
 install(TARGETS octomap octomap-static
   EXPORT octomap-targets
   INCLUDES DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
