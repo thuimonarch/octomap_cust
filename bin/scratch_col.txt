@@ -1,0 +1,8 @@
+# Octomap ColorOcTree binary file
+# (feel free to add / change comments, but leave the first line as it is!)
+#
+id ColorOcTree
+size 3
+res 0.01
+data
+UªÉÊË
